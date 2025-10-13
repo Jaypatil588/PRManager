@@ -1352,6 +1352,171 @@ PR_ANALYSIS_PAGE = """
             gap: 1rem;
         }
         
+        .analysis-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e1e4e8;
+        }
+        
+        .approval-status {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .approval-status.approved {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .approval-status.rejected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .assessment {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-style: italic;
+            color: #555;
+        }
+        
+        .concern-item {
+            border: 1px solid #e1e4e8;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: white;
+        }
+        
+        .concern-item.high {
+            border-left: 4px solid #dc3545;
+        }
+        
+        .concern-item.medium {
+            border-left: 4px solid #ffc107;
+        }
+        
+        .concern-item.low {
+            border-left: 4px solid #28a745;
+        }
+        
+        .concern-item.critical {
+            border-left: 4px solid #6f42c1;
+        }
+        
+        .concern-header {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .severity-badge {
+            padding: 0.3rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .severity-badge.critical {
+            background: #6f42c1;
+            color: white;
+        }
+        
+        .severity-badge.high {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .severity-badge.medium {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .severity-badge.low {
+            background: #28a745;
+            color: white;
+        }
+        
+        .concern-type {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .concern-file {
+            color: #0366d6;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .concern-description {
+            margin-bottom: 0.5rem;
+            line-height: 1.5;
+        }
+        
+        .concern-suggestion {
+            background: #e9ecef;
+            padding: 0.8rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        
+        .stat-value.approved {
+            color: #28a745;
+        }
+        
+        .stat-value.rejected {
+            color: #dc3545;
+        }
+        
+        .stat-value.risk-critical {
+            color: #6f42c1;
+        }
+        
+        .stat-value.risk-high {
+            color: #dc3545;
+        }
+        
+        .stat-value.risk-medium {
+            color: #ffc107;
+        }
+        
+        .stat-value.risk-low {
+            color: #28a745;
+        }
+        
         .stat-item {
             display: flex;
             justify-content: space-between;
@@ -1570,6 +1735,8 @@ PR_ANALYSIS_PAGE = """
             .then(data => {
                 displayCommitsAnalysis(data.commits);
                 displayVulnerabilities(data.vulnerabilities);
+                displayPRReview(data.pr_review);
+                displaySummary(data.summary);
             })
             .catch(error => {
                 console.error('Error loading analysis:', error);
@@ -1618,18 +1785,119 @@ PR_ANALYSIS_PAGE = """
         function displayVulnerabilities(vulns) {
             const container = document.getElementById('vulnerabilities');
             
-            if (vulns.length === 0) {
+            if (!vulns || !vulns.concerns || vulns.concerns.length === 0) {
                 container.innerHTML = '<p style="color: #28a745; text-align: center;">✅ No vulnerabilities found!</p>';
                 return;
             }
             
-            container.innerHTML = vulns.map(vuln => `
-                <div class="vuln-item ${vuln.severity}">
-                    <div class="vuln-title">${vuln.title}</div>
-                    <div class="vuln-description">${vuln.description}</div>
-                    <div class="vuln-file">📁 ${vuln.file}</div>
+            container.innerHTML = `
+                <div class="analysis-header">
+                    <h3>🔒 Security Analysis</h3>
+                    <div class="approval-status ${vulns.approve ? 'approved' : 'rejected'}">
+                        ${vulns.approve ? '✅ Approved' : '❌ Needs Review'}
+                    </div>
                 </div>
-            `).join('');
+                <div class="assessment">${vulns.overall_assessment}</div>
+                ${vulns.concerns.map(concern => `
+                    <div class="concern-item ${concern.severity.toLowerCase()}">
+                        <div class="concern-header">
+                            <span class="severity-badge ${concern.severity.toLowerCase()}">${concern.severity}</span>
+                            <span class="concern-type">${concern.type}</span>
+                        </div>
+                        <div class="concern-file">📁 ${concern.file_path} (lines ${concern.line_number_start}-${concern.line_number_end})</div>
+                        <div class="concern-description">${concern.description}</div>
+                        <div class="concern-suggestion">
+                            <strong>💡 Suggestion:</strong> ${concern.suggestion}
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+        }
+        
+        function displayPRReview(review) {
+            // Create a new section for PR review if it doesn't exist
+            let reviewContainer = document.getElementById('prReview');
+            if (!reviewContainer) {
+                const analysisGrid = document.querySelector('.analysis-grid');
+                const reviewCard = document.createElement('div');
+                reviewCard.className = 'analysis-card';
+                reviewCard.innerHTML = `
+                    <h2 class="card-title">📝 PR Review</h2>
+                    <div id="prReview">Loading review...</div>
+                `;
+                analysisGrid.appendChild(reviewCard);
+                reviewContainer = document.getElementById('prReview');
+            }
+            
+            if (!review || !review.concerns || review.concerns.length === 0) {
+                reviewContainer.innerHTML = '<p style="color: #28a745; text-align: center;">✅ No review concerns found!</p>';
+                return;
+            }
+            
+            reviewContainer.innerHTML = `
+                <div class="analysis-header">
+                    <h3>📝 Code Review</h3>
+                    <div class="approval-status ${review.approve ? 'approved' : 'rejected'}">
+                        ${review.approve ? '✅ Approved' : '❌ Needs Review'}
+                    </div>
+                </div>
+                <div class="assessment">${review.overall_assessment}</div>
+                ${review.concerns.map(concern => `
+                    <div class="concern-item ${concern.severity.toLowerCase()}">
+                        <div class="concern-header">
+                            <span class="severity-badge ${concern.severity.toLowerCase()}">${concern.severity}</span>
+                            <span class="concern-type">${concern.type}</span>
+                        </div>
+                        <div class="concern-file">📁 ${concern.file_path} (lines ${concern.line_number_start}-${concern.line_number_end})</div>
+                        <div class="concern-description">${concern.description}</div>
+                        <div class="concern-suggestion">
+                            <strong>💡 Suggestion:</strong> ${concern.suggestion}
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+        }
+        
+        function displaySummary(summary) {
+            // Create a new section for summary if it doesn't exist
+            let summaryContainer = document.getElementById('analysisSummary');
+            if (!summaryContainer) {
+                const analysisGrid = document.querySelector('.analysis-grid');
+                const summaryCard = document.createElement('div');
+                summaryCard.className = 'analysis-card';
+                summaryCard.innerHTML = `
+                    <h2 class="card-title">📊 Analysis Summary</h2>
+                    <div id="analysisSummary">Loading summary...</div>
+                `;
+                analysisGrid.appendChild(summaryCard);
+                summaryContainer = document.getElementById('analysisSummary');
+            }
+            
+            if (!summary) {
+                summaryContainer.innerHTML = '<p style="color: #666; text-align: center;">No summary available</p>';
+                return;
+            }
+            
+            summaryContainer.innerHTML = `
+                <div class="summary-stats">
+                    <div class="stat-item">
+                        <div class="stat-label">Overall Approval</div>
+                        <div class="stat-value ${summary.overall_approval ? 'approved' : 'rejected'}">
+                            ${summary.overall_approval ? '✅ Approved' : '❌ Needs Review'}
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Risk Level</div>
+                        <div class="stat-value risk-${summary.risk_level.toLowerCase()}">
+                            ${summary.risk_level}
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Total Concerns</div>
+                        <div class="stat-value">${summary.total_concerns}</div>
+                    </div>
+                </div>
+            `;
         }
     </script>
 </body>

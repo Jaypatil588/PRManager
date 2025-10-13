@@ -12,6 +12,7 @@ from flask_cors import CORS
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
 from github_service import GitHubService
+from mock_analyzer import mock_analyzer
 
 # Load environment variables
 load_dotenv()
@@ -886,6 +887,86 @@ def api_commit_patch(repo_name, commit_sha):
     except Exception as e:
         return jsonify({'error': f'Failed to fetch commit patch: {str(e)}'}), 500
 
+@app.route('/api/repository/<path:repo_name>/pr/<int:pr_number>/review')
+def api_pr_review(repo_name, pr_number):
+    """API endpoint to get PR review analysis"""
+    if 'user' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    # Decode URL-encoded repository name
+    from urllib.parse import unquote
+    repo_name = unquote(repo_name)
+    
+    try:
+        # Get PR details for context
+        if '/' not in repo_name:
+            return jsonify({'error': 'Invalid repository name format'}), 400
+        
+        repo_owner, repo_name_only = repo_name.split('/', 1)
+        
+        # Get user's access token and create GitHub service instance
+        access_token = session['user']['access_token']
+        user_github_service = GitHubService(token=access_token)
+        
+        # Get PR details
+        pr_details = user_github_service.get_pull_request_details(repo_owner, repo_name_only, pr_number)
+        
+        # Generate mock PR review
+        pr_review = mock_analyzer.analyze_pr_review(
+            code_diff="",  # We could fetch the actual diff here if needed
+            pr_title=pr_details.get('title', ''),
+            pr_description=pr_details.get('body', '')
+        )
+        
+        return jsonify({
+            'pr_number': pr_number,
+            'repo_name': repo_name,
+            'review': pr_review
+        })
+    
+    except Exception as e:
+        return jsonify({'error': f'Failed to fetch PR review: {str(e)}'}), 500
+
+@app.route('/api/repository/<path:repo_name>/pr/<int:pr_number>/vulnerabilities')
+def api_pr_vulnerabilities(repo_name, pr_number):
+    """API endpoint to get PR vulnerability analysis"""
+    if 'user' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    # Decode URL-encoded repository name
+    from urllib.parse import unquote
+    repo_name = unquote(repo_name)
+    
+    try:
+        # Get PR details for context
+        if '/' not in repo_name:
+            return jsonify({'error': 'Invalid repository name format'}), 400
+        
+        repo_owner, repo_name_only = repo_name.split('/', 1)
+        
+        # Get user's access token and create GitHub service instance
+        access_token = session['user']['access_token']
+        user_github_service = GitHubService(token=access_token)
+        
+        # Get PR details
+        pr_details = user_github_service.get_pull_request_details(repo_owner, repo_name_only, pr_number)
+        
+        # Generate mock vulnerability analysis
+        vulnerabilities = mock_analyzer.analyze_vulnerabilities(
+            code_diff="",  # We could fetch the actual diff here if needed
+            pr_title=pr_details.get('title', ''),
+            pr_description=pr_details.get('body', '')
+        )
+        
+        return jsonify({
+            'pr_number': pr_number,
+            'repo_name': repo_name,
+            'vulnerabilities': vulnerabilities
+        })
+    
+    except Exception as e:
+        return jsonify({'error': f'Failed to fetch PR vulnerabilities: {str(e)}'}), 500
+
 @app.route('/api/repository/<path:repo_name>/pr/<int:pr_number>/analysis')
 def api_pr_analysis(repo_name, pr_number):
     """API endpoint to get PR analysis data"""
@@ -907,23 +988,41 @@ def api_pr_analysis(repo_name, pr_number):
         access_token = session['user']['access_token']
         user_github_service = GitHubService(token=access_token)
         
-        # Get comprehensive PR analysis using GitHub service
-        analysis = user_github_service.get_comprehensive_pr_analysis(repo_owner, repo_name_only, pr_number)
+        # Get comprehensive PR analysis using mock analyzer
+        pr_details = user_github_service.get_pull_request_details(repo_owner, repo_name_only, pr_number)
+        commits = user_github_service.get_pull_request_commits(repo_owner, repo_name_only, pr_number)
         
-        if not analysis:
-            return jsonify({'error': 'Failed to analyze PR'}), 500
+        # Generate mock analysis
+        pr_review = mock_analyzer.analyze_pr_review(
+            code_diff="",
+            pr_title=pr_details.get('title', ''),
+            pr_description=pr_details.get('body', '')
+        )
+        
+        vulnerabilities = mock_analyzer.analyze_vulnerabilities(
+            code_diff="",
+            pr_title=pr_details.get('title', ''),
+            pr_description=pr_details.get('body', '')
+        )
+        
+        commit_analysis = mock_analyzer.analyze_commits(commits)
         
         # Return the analysis data
         return jsonify({
-            'commits': analysis['commit_analysis'],
-            'vulnerabilities': analysis['vulnerabilities'],
-            'summary': analysis['summary'],
+            'commits': commit_analysis,
+            'vulnerabilities': vulnerabilities,
+            'pr_review': pr_review,
+            'summary': {
+                'overall_approval': pr_review['approve'] and vulnerabilities['approve'],
+                'risk_level': mock_analyzer._calculate_risk_level(pr_review, vulnerabilities),
+                'total_concerns': len(pr_review.get('concerns', [])) + len(vulnerabilities.get('concerns', []))
+            },
             'pr_details': {
-                'title': analysis['pr_details']['title'],
-                'body': analysis['pr_details']['body'],
-                'state': analysis['pr_details']['state'],
-                'created_at': analysis['pr_details']['created_at'],
-                'user': analysis['pr_details']['user']['login']
+                'title': pr_details.get('title', ''),
+                'body': pr_details.get('body', ''),
+                'state': pr_details.get('state', ''),
+                'created_at': pr_details.get('created_at', ''),
+                'user': pr_details.get('user', {}).get('login', '')
             }
         })
     
