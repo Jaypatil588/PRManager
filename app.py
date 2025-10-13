@@ -57,8 +57,8 @@ def main():
         analyzer = PRAnalyzer()
 
         review = analyzer.analyze(code_diff, "pr_review")
-        pr = (json.dumps(review, indent=2))
-        print(pr)
+        #pr = (json.dumps(review, indent=2))
+        #print(pr)
         
 
     # Post a PR comment (test mode posts a simple message)
@@ -130,14 +130,14 @@ def main():
 
     #Check code vulneribilityc
     vulneribility = analyzer.analyze(code_diff, "vulneribility_check")
-    vul = (json.dumps(vulneribility, indent=2))
-    print(vul)
+    #vul = (json.dumps(vulneribility, indent=2))
+    #print(vul)
 
     postPR = "https://flask-hello-world-eight-lac.vercel.app/fetchPrReview"
     postVul = "https://flask-hello-world-eight-lac.vercel.app/fetchVulnerability"
 
-    response = requests.post(postPR, pr)
-    response2 = requests.post(postVul, vul)
+    response = requests.post(postPR, json = review)
+    response2 = requests.post(postVul, json = vulneribility)
 
 if __name__ == "__main__":
     main()
