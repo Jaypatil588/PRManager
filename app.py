@@ -2,6 +2,7 @@ import requests
 import json
 import os
 from dotenv import load_dotenv
+from slack_client import SlackClient
 
 
 def main():
@@ -52,94 +53,61 @@ def main():
 
     # Step 4: Analyze code (if not test mode)
     review = None
-    if not test_only and code_diff:
-        print("🤖 Running AI analysis...")
-        try:
-            analyzer = PRAnalyzer()
-            review = analyzer.analyze(code_diff)
-            print("✅ Analysis completed")
-            print(json.dumps(review, indent=2))
-        except Exception as exc:
-            print(f"❌ Analysis failed: {exc}")
-            review = {"error": f"Analysis failed: {exc}"}
+    if not test_only:
+        analyzer = PRAnalyzer()
+        review = analyzer.analyze(code_diff)
+        print(json.dumps(review, indent=2))
 
-    # Step 5: Post comments using GitHubClient
-    github_token = os.getenv("GITHUB_TOKEN")
-    
-    if github_token and repo_owner and repo_name and pr_number:
-        print("💬 Posting comments to GitHub...")
-        
+    # Post a PR comment (test mode posts a simple message)
+    repo_owner = latest.get("repo_owner")
+    repo_name = latest.get("repo_name")
+    pr_number = latest.get("pr_number")
+    github_token = os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
+
+    if repo_owner and repo_name and pr_number and github_token:
+        def _format_comment(r: dict | None) -> str:
+            if test_only or not r:
+                return "Test comment from PRManager: integration check ✅"
+            if "error" in r:
+                return f"PR Review failed: {r.get('error', 'Unknown error')}"
+            overall = r.get("overall_assessment", "No assessment produced.")
+            approve = r.get("approve", False)
+            concerns = r.get("concerns", [])
+            lines = [
+                "Automated PR Review (NVIDIA RAG)",
+                f"Overall: {overall}",
+                f"Decision: {'Approve' if approve else 'Request changes'}",
+                f"Concerns: {len(concerns)}",
+            ]
+            for idx, c in enumerate(concerns[:3], start=1):
+                fp = c.get("file_path", "unknown")
+                sev = c.get("severity", "-")
+                typ = c.get("type", "-")
+                desc = c.get("description", "")
+                lines.append(f"{idx}. [{sev}/{typ}] {fp} - {desc}")
+            return "\n".join(lines)
+
+        comment_body = _format_comment(review)
+        api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/issues/{int(pr_number)}/comments"
         try:
-            # Initialize GitHub client with Bearer token
-            client = GitHubClient(github_token, repo_owner, repo_name, use_bearer=True)
-            
-            # Format comment based on analysis or test mode
-            if test_only or not review:
-                comment_body = "🧪 Test comment from PRManager - integration check ✅"
-            elif "error" in review:
-                comment_body = f"❌ PR Review failed: {review.get('error', 'Unknown error')}"
+            # Preferred scheme for GitHub REST v3 with classic PATs
+            headers_token = {
+                "Authorization": f"token {github_token}",
+                "Accept": "application/vnd.github.v3+json",
+            }
+            resp = requests.post(api_url, headers=headers_token, json={"body": comment_body}, timeout=15)
+            if resp.status_code == 401:
+                # Fallback for fine-grained tokens that expect Bearer
+                headers_bearer = {
+                    "Authorization": f"Bearer {github_token}",
+                    "Accept": "application/vnd.github.v3+json",
+                }
+                resp = requests.post(api_url, headers=headers_bearer, json={"body": comment_body}, timeout=15)
+
+            if resp.status_code == 201:
+                print("Posted PR review comment successfully.")
             else:
-                # Format detailed review comment
-                overall = review.get("overall_assessment", "No assessment produced.")
-                approve = review.get("approve", False)
-                concerns = review.get("concerns", [])
-                
-                lines = [
-                    "## 🤖 Automated PR Review (NVIDIA RAG)",
-                    "",
-                    f"**Overall Assessment:** {overall}",
-                    f"**Decision:** {'✅ Approve' if approve else '❌ Request changes'}",
-                    f"**Concerns Found:** {len(concerns)}",
-                    ""
-                ]
-                
-                if concerns:
-                    lines.append("### Issues Found:")
-                    for idx, c in enumerate(concerns[:5], start=1):
-                        fp = c.get("file_path", "unknown")
-                        sev = c.get("severity", "-")
-                        typ = c.get("type", "-")
-                        desc = c.get("description", "")
-                        sugg = c.get("suggestion", "")
-                        lines.extend([
-                            f"**{idx}. [{sev}/{typ}] {fp}**",
-                            f"   - {desc}",
-                            f"   - 💡 Suggestion: {sugg}",
-                            ""
-                        ])
-                    
-                    if len(concerns) > 5:
-                        lines.append(f"...and {len(concerns) - 5} more concerns.")
-                
-                comment_body = "\n".join(lines)
-            
-            # Post regular comment
-            print("📝 Posting regular comment...")
-            comment_result = client.post_comment(int(pr_number), comment_body)
-            print(f"✅ Regular comment posted: {comment_result.get('html_url', 'N/A')}")
-            
-            # Post inline review comment on first file if analysis found issues
-            if not test_only and review and not review.get("error") and review.get("concerns"):
-                print("🔍 Posting inline review comment...")
-                try:
-                    first_concern = review["concerns"][0]
-                    file_path = first_concern.get("file_path", "app.py")
-                    line_number = first_concern.get("line_number_start", 1)
-                    
-                    inline_body = f"🤖 **{first_concern.get('severity', 'MEDIUM')}** - {first_concern.get('description', 'Issue found')}"
-                    
-                    inline_result = client.post_review_comment_with_auto_commit(
-                        int(pr_number), 
-                        inline_body, 
-                        file_path, 
-                        line_number
-                    )
-                    print(f"✅ Inline comment posted: {inline_result.get('html_url', 'N/A')}")
-                except Exception as exc:
-                    print(f"⚠️  Inline comment failed: {exc}")
-            
-            print("🎉 Comment posting completed successfully!")
-            
+                print(f"Failed to post PR comment: {resp.status_code} - {resp.text}")
         except Exception as exc:
             print(f"❌ Comment posting failed: {exc}")
     else:
@@ -157,6 +125,10 @@ def main():
     
     print("✅ Pipeline completed!")
 
+
+    #Check code vulneribilityc
+    vulneribility = analyzer.analyze(code_diff, "vulneribility_check")
+    print(json.dumps(vulneribility, indent=2))
 
 if __name__ == "__main__":
     main()
