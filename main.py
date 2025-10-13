@@ -761,8 +761,11 @@ def api_repository_prs(repo_name):
                 'html_url': pr['html_url'],
                 'user': {'login': pr['user']['login']},
                 'created_at': pr['created_at'],
-                'comments': pr['comments'],
-                'commits': pr['commits']
+                'comments_url': pr.get('comments_url', ''),
+                'commits_url': pr.get('commits_url', ''),
+                'updated_at': pr.get('updated_at', ''),
+                'closed_at': pr.get('closed_at', ''),
+                'merged_at': pr.get('merged_at', '')
             }
         
         return jsonify({
