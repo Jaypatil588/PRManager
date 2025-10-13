@@ -108,39 +108,111 @@ class PRAnalyzer:
 
         RESPONSE (JSON only):
         """
+        
+        prompt_template2 =""" 
+            You are an AI-powered code review assistant acting as a Senior Staff Engineer. Your primary goal is to maintain a high-quality, secure, and readable codebase by identifying issues in pull requests.
+            Carefully analyze the provided "PULL REQUEST DIFF" in conjunction with the "CONTEXT FROM EXISTING CODEBASE".
+
+            Your analysis MUST produce a single, clean JSON object. Do not include any other text or markdown outside of the JSON structure.
+
+            JSON Output Structure:
+            JSON
+
+            {{
+            "overall_assessment": "A brief, one-sentence summary of the PR's quality.",
+            "concerns": [
+                {{
+                "file_path": "The full path to the file with the issue.",
+                "line_number_start": "The starting line number of the code block in question.",
+                "line_number_end": "The ending line number of the code block in question.",
+                "severity": "CRITICAL|HIGH|MEDIUM|LOW",
+                "type": "Security|Bug|Readability|Best Practice|Performance|Scalability|Maintainability",
+                "vulnerability_type": "Injection|Broken Authentication|Sensitive Data Exposure|XML External Entities (XXE)|Broken Access Control|Security Misconfiguration|Cross-Site Scripting (XSS)|Insecure Deserialization|Using Components with Known Vulnerabilities|Insufficient Logging & Monitoring|Server-Side Request Forgery (SSRF)|Improper Error Handling|Denial-of-Service (DoS)|Memory Leak|Race Condition|Insecure Direct Object References (IDOR)|Path Traversal|Unvalidated Redirects and Forwards|Code Quality|Other",
+                "description": "A detailed and clear explanation of the issue.",
+                "suggestion": "A concrete, actionable code suggestion to resolve the issue."
+                }}
+            ],
+            "approve": boolean
+            }}
+
+            CONTEXT FROM EXISTING CODEBASE:
+            {context}
+
+            PULL REQUEST DIFF:
+            {question}
+
+            RESPONSE (JSON only):
+            """
+        
+        
         PROMPT = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+        PROMPT2 = PromptTemplate(template=prompt_template2, input_variables=["context", "question"])
+
 
         self.rag_chain = RetrievalQA.from_chain_type(
             llm=llm, chain_type="stuff",
             retriever=vector_store.as_retriever(search_kwargs={'k': 4}),
             chain_type_kwargs={"prompt": PROMPT}
         )
+
+        self.rag_chain2 = RetrievalQA.from_chain_type(
+            llm=llm, chain_type="stuff",
+            retriever=vector_store.as_retriever(search_kwargs={'k': 4}),
+            chain_type_kwargs={"prompt": PROMPT2}
+        )
         print("RAG pipeline created successfully.")
 
-    def analyze(self, pr_diff: str) -> dict:
+    def analyze(self, pr_diff: str, mode) -> dict:
         """
         Analyzes a given PR diff and returns a structured review as a dictionary.
         """
-        print("\n--- Analyzing New Pull Request Diff ---")
-        if not pr_diff:
-            return {"error": "PR diff content is empty."}
+
+        if mode == "pr_review":
+            print("\n--- Analyzing New Pull Request Diff ---")
+            if not pr_diff:
+                return {"error": "PR diff content is empty."}
+                
+            result = self.rag_chain.invoke({"query": pr_diff})
+            response_text = result.get("result", "{}")
             
-        result = self.rag_chain.invoke({"query": pr_diff})
-        response_text = result.get("result", "{}")
-        
-        print("\n--- Raw LLM Response ---")
-        print(response_text)
-        
-        try:
-            # Clean the response to ensure it's valid JSON
-            if "```json" in response_text:
-                response_text = response_text.split("```json\n")[1].split("\n```")[0]
+            print("\n--- Raw LLM Response ---")
+            print(response_text)
             
-            return json.loads(response_text)
-        except (json.JSONDecodeError, IndexError):
-            print("Error: Failed to decode JSON from LLM response.")
-            return {
-                "overall_assessment": "Failed to parse the AI model's response.",
-                "concerns": [{"description": response_text, "severity": "CRITICAL", "type": "Parsing Error"}],
-                "approve": False
-            }
+            try:
+                # Clean the response to ensure it's valid JSON
+                if "```json" in response_text:
+                    response_text = response_text.split("```json\n")[1].split("\n```")[0]
+                
+                return json.loads(response_text)
+            except (json.JSONDecodeError, IndexError):
+                print("Error: Failed to decode JSON from LLM response.")
+                return {
+                    "overall_assessment": "Failed to parse the AI model's response.",
+                    "concerns": [{"description": response_text, "severity": "CRITICAL", "type": "Parsing Error"}],
+                    "approve": False
+                }
+        elif mode == "vulneribility_check":
+            print("\n--- Analyzing vulneribility_check---")
+            if not pr_diff:
+                return {"error": " content is empty."}
+                
+            result = self.rag_chain2.invoke({"query": pr_diff})
+            response_text = result.get("result", "{}")
+            
+            print("\n--- Raw LLM Response ---")
+            print(response_text)
+            
+            try:
+                # Clean the response to ensure it's valid JSON
+                if "```json" in response_text:
+                    response_text = response_text.split("```json\n")[1].split("\n```")[0]
+                
+                return json.loads(response_text)
+            except (json.JSONDecodeError, IndexError):
+                print("Error: Failed to decode JSON from LLM response.")
+                return {
+                    "overall_assessment": "Failed to parse the AI model's response.",
+                    "concerns": [{"description": response_text, "severity": "CRITICAL", "type": "Parsing Error"}],
+                    "approve": False
+                }
+        

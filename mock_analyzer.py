@@ -11,57 +11,19 @@ class MockPRAnalyzer:
     def __init__(self):
         self.pr_review_responses = [
             {
-                "overall_assessment": "The PR introduces a significant amount of new code with mixed quality and several concerns.",
-                "concerns": [
-                    {
-                        "file_path": "client/app.js",
-                        "line_number_start": 1,
-                        "line_number_end": 309,
-                        "severity": "MEDIUM",
-                        "type": "Readability",
-                        "description": "The file contains a large amount of inline CSS, making it hard to read and maintain. Consider extracting styles into a separate CSS file or using a styling solution like CSS Modules or a preprocessor.",
-                        "suggestion": "Extract styles into a separate CSS file (e.g., app.css) and import it in app.js"
-                    },
-                    {
-                        "file_path": "client/app.py",
-                        "line_number_start": 1,
-                        "line_number_end": 411,
-                        "severity": "HIGH",
-                        "type": "Security",
-                        "description": "Hardcoded secret key in app.py. Never commit secret keys directly in code. Use environment variables instead.",
-                        "suggestion": "Replace 'your-secret-key-change-this-in-production' with os.getenv('SECRET_KEY')"
-                    },
-                    {
-                        "file_path": "github_service.py",
-                        "line_number_start": 1,
-                        "line_number_end": 256,
-                        "severity": "LOW",
-                        "type": "Best Practice",
-                        "description": "The analyze_vulnerabilities method contains mock vulnerabilities. While useful for testing, ensure these are removed or clearly documented in production code to avoid confusion.",
-                        "suggestion": "Document or remove mock vulnerabilities for production"
-                    }
-                ],
+                "overall_assessment": "Review is required for this pull request.",
+                "concerns": [],
                 "approve": False
             },
             {
-                "overall_assessment": "This PR shows good code quality with minor improvements needed.",
-                "concerns": [
-                    {
-                        "file_path": "main.py",
-                        "line_number_start": 45,
-                        "line_number_end": 50,
-                        "severity": "LOW",
-                        "type": "Code Quality",
-                        "description": "Consider adding error handling for the API calls to improve robustness.",
-                        "suggestion": "Add try-catch blocks around API calls and provide meaningful error messages"
-                    }
-                ],
-                "approve": True
+                "overall_assessment": "Review is required for this pull request.",
+                "concerns": [],
+                "approve": False
             },
             {
-                "overall_assessment": "Excellent PR with clean code and proper implementation.",
+                "overall_assessment": "Review is required for this pull request.",
                 "concerns": [],
-                "approve": True
+                "approve": False
             }
         ]
         
@@ -194,21 +156,8 @@ class MockPRAnalyzer:
 
     def analyze_pr_review(self, code_diff: str = "", pr_title: str = "", pr_description: str = "") -> Dict[str, Any]:
         """Generate a mock PR review response"""
-        # Select a random response or use the first one for consistency
-        response = random.choice(self.pr_review_responses)
-        
-        # Add some dynamic elements based on input
-        if "security" in pr_title.lower() or "auth" in pr_title.lower():
-            # If it's a security-related PR, use the first response (has security concerns)
-            response = self.pr_review_responses[0]
-        elif "fix" in pr_title.lower() or "bug" in pr_title.lower():
-            # If it's a bug fix, use the second response (minor issues)
-            response = self.pr_review_responses[1]
-        else:
-            # Default to random selection
-            response = random.choice(self.pr_review_responses)
-        
-        return response
+        # Always return the simple "review is required" response
+        return self.pr_review_responses[0]
 
     def analyze_vulnerabilities(self, code_diff: str = "", pr_title: str = "", pr_description: str = "") -> Dict[str, Any]:
         """Generate a mock vulnerability analysis response"""
