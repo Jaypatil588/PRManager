@@ -1748,23 +1748,29 @@ PR_ANALYSIS_PAGE = """
         
         function displayCommitsAnalysis(commitsData) {
             const container = document.getElementById('commitsAnalysis');
-            const { good, bad, total, suggestions } = commitsData;
-            const goodPercentage = Math.round((good / total) * 100);
+            const { 
+                good_commits = 0, 
+                bad_commits = 0, 
+                total_commits = 0, 
+                quality_score = 0, 
+                suggestions = [] 
+            } = commitsData || {};
+            const goodPercentage = quality_score || (total_commits > 0 ? Math.round((good_commits / total_commits) * 100) : 0);
             
             container.innerHTML = `
                 <div class="stat-item total">
                     <span>Total Commits</span>
-                    <span class="stat-number">${total}</span>
+                    <span class="stat-number">${total_commits}</span>
                 </div>
                 
                 <div class="stat-item good">
                     <span>Good Commits</span>
-                    <span class="stat-number">${good}</span>
+                    <span class="stat-number">${good_commits}</span>
                 </div>
                 
                 <div class="stat-item bad">
                     <span>Bad Commits</span>
-                    <span class="stat-number">${bad}</span>
+                    <span class="stat-number">${bad_commits}</span>
                 </div>
                 
                 <div class="progress-bar">
@@ -1878,23 +1884,29 @@ PR_ANALYSIS_PAGE = """
                 return;
             }
             
+            const { 
+                overall_approval = false, 
+                risk_level = 'UNKNOWN', 
+                total_concerns = 0 
+            } = summary || {};
+            
             summaryContainer.innerHTML = `
                 <div class="summary-stats">
                     <div class="stat-item">
                         <div class="stat-label">Overall Approval</div>
-                        <div class="stat-value ${summary.overall_approval ? 'approved' : 'rejected'}">
-                            ${summary.overall_approval ? '✅ Approved' : '❌ Needs Review'}
+                        <div class="stat-value ${overall_approval ? 'approved' : 'rejected'}">
+                            ${overall_approval ? '✅ Approved' : '❌ Needs Review'}
                         </div>
                     </div>
                     <div class="stat-item">
                         <div class="stat-label">Risk Level</div>
-                        <div class="stat-value risk-${summary.risk_level.toLowerCase()}">
-                            ${summary.risk_level}
+                        <div class="stat-value risk-${risk_level.toLowerCase()}">
+                            ${risk_level}
                         </div>
                     </div>
                     <div class="stat-item">
                         <div class="stat-label">Total Concerns</div>
-                        <div class="stat-value">${summary.total_concerns}</div>
+                        <div class="stat-value">${total_concerns}</div>
                     </div>
                 </div>
             `;
