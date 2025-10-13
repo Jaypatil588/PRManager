@@ -89,6 +89,19 @@ class GitHubService:
             print(f"Error fetching commits for PR #{pr_number}: {e}")
             return []
     
+    def get_commit_patch(self, repo_owner, repo_name, commit_sha):
+        """Get the patch/diff for a specific commit"""
+        url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/commits/{commit_sha}"
+        headers = {**self.headers, 'Accept': 'application/vnd.github.v3.patch'}
+        
+        try:
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            return response.text
+        except Exception as e:
+            print(f"Error fetching patch for commit {commit_sha}: {e}")
+            return None
+    
     def get_pull_request_details(self, repo_owner, repo_name, pr_number):
         """Get detailed information about a specific pull request"""
         url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/pulls/{pr_number}"

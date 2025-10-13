@@ -369,6 +369,101 @@ REPOSITORIES_PAGE = """
             background: #218838;
         }
         
+        .auto-merge-section {
+            background: #f8f9fa;
+            border: 2px solid #e1e4e8;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .auto-merge-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .auto-merge-controls {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: #ccc;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .toggle-switch.active {
+            background: #28a745;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(26px);
+        }
+        
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            min-width: 200px;
+        }
+        
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+        }
+        
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+        }
+        
+        .slider-value {
+            text-align: center;
+            font-weight: 600;
+            color: #667eea;
+        }
+        
         .loading {
             text-align: center;
             padding: 3rem;
@@ -407,12 +502,50 @@ REPOSITORIES_PAGE = """
     <div class="container">
         <h1 class="page-title">Your Repositories</h1>
         
+        <!-- Auto-Merge Settings Section -->
+        <div class="auto-merge-section">
+            <div class="auto-merge-title">
+                ⚙️ Global Auto-Merge Settings
+            </div>
+            <div class="auto-merge-controls">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <span style="font-weight: 600;">Auto Merge:</span>
+                    <div class="toggle-switch" onclick="toggleGlobalAutoMerge()">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+                
+                <div class="slider-container">
+                    <label style="font-weight: 600;">Vulnerability Threshold (%)</label>
+                    <input type="range" class="slider" min="0" max="100" value="10" id="globalVulnThreshold" oninput="updateGlobalThreshold(this.value)">
+                    <div class="slider-value" id="globalThresholdValue">10%</div>
+                </div>
+            </div>
+        </div>
+        
         <div id="repos-container" class="loading">
             Loading your repositories...
         </div>
     </div>
     
     <script>
+        // Global auto-merge settings
+        let globalAutoMerge = false;
+        let globalVulnThreshold = 10;
+        
+        function toggleGlobalAutoMerge() {
+            globalAutoMerge = !globalAutoMerge;
+            const toggle = document.querySelector('.toggle-switch');
+            toggle.classList.toggle('active', globalAutoMerge);
+            console.log('Global Auto Merge:', globalAutoMerge ? 'ON' : 'OFF');
+        }
+        
+        function updateGlobalThreshold(value) {
+            globalVulnThreshold = parseInt(value);
+            document.getElementById('globalThresholdValue').textContent = value + '%';
+            console.log('Global Vulnerability Threshold:', globalVulnThreshold + '%');
+        }
+        
         // Fetch repositories from the API
         fetch('/api/repositories', {
             credentials: 'same-origin'
@@ -682,6 +815,80 @@ PR_LISTING_PAGE = """
             flex: 1;
         }
         
+        .commit-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+        
+        .commit-toggle-switch {
+            position: relative;
+            width: 40px;
+            height: 20px;
+            background: #ccc;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .commit-toggle-switch.active {
+            background: #28a745;
+        }
+        
+        .commit-toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        
+        .commit-toggle-switch.active .commit-toggle-slider {
+            transform: translateX(20px);
+        }
+        
+        .commit-patch {
+            background: #f8f9fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 0.8rem;
+            margin-top: 0.5rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        
+        .commit-patch-header {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .patch-toggle {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.3rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            cursor: pointer;
+        }
+        
+        .patch-toggle:hover {
+            background: #5a6fd8;
+        }
+        
         .analyze-btn {
             background: #667eea;
             color: white;
@@ -822,16 +1029,101 @@ PR_LISTING_PAGE = """
                         return;
                     }
                     
-                    container.innerHTML = commits.map(commit => `
+                    container.innerHTML = commits.map((commit, index) => `
                         <div class="commit-item">
                             <span class="commit-sha">${commit.sha.substring(0, 7)}</span>
                             <span class="commit-message">${commit.commit.message.split('\\n')[0]}</span>
+                            
+                            <div class="commit-controls">
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span style="font-size: 0.8rem; color: #666;">Auto-merge:</span>
+                                    <div class="commit-toggle-switch" onclick="toggleCommitAutoMerge(${prNumber}, ${index})">
+                                        <div class="commit-toggle-slider"></div>
+                                    </div>
+                                </div>
+                                <button class="patch-toggle" onclick="toggleCommitPatch(${prNumber}, ${index})">
+                                    📄 Show Patch
+                                </button>
+                            </div>
+                            
+                            <div class="commit-patch" id="patch-${prNumber}-${index}" style="display: none;">
+                                <div class="commit-patch-header">
+                                    <span>Code Changes</span>
+                                    <button class="patch-toggle" onclick="toggleCommitPatch(${prNumber}, ${index})">
+                                        ✕ Hide
+                                    </button>
+                                </div>
+                                <div id="patch-content-${prNumber}-${index}">
+                                    Loading patch...
+                                </div>
+                            </div>
                         </div>
                     `).join('');
                 })
                 .catch(error => {
                     document.getElementById(`commits-${prNumber}`).innerHTML = 
                         '<p style="color: #dc3545; text-align: center;">Error loading commits</p>';
+                });
+        }
+        
+        function toggleCommitAutoMerge(prNumber, commitIndex) {
+            const toggle = document.querySelector(`#commits-${prNumber} .commit-item:nth-child(${commitIndex + 1}) .commit-toggle-switch`);
+            toggle.classList.toggle('active');
+            const isActive = toggle.classList.contains('active');
+            console.log(`PR ${prNumber}, Commit ${commitIndex}: Auto-merge ${isActive ? 'ON' : 'OFF'}`);
+        }
+        
+        function toggleCommitPatch(prNumber, commitIndex) {
+            const patchDiv = document.getElementById(`patch-${prNumber}-${commitIndex}`);
+            const isVisible = patchDiv.style.display !== 'none';
+            
+            if (isVisible) {
+                patchDiv.style.display = 'none';
+            } else {
+                patchDiv.style.display = 'block';
+                // Load patch content if not already loaded
+                const patchContent = document.getElementById(`patch-content-${prNumber}-${commitIndex}`);
+                if (patchContent.textContent === 'Loading patch...') {
+                    loadCommitPatch(prNumber, commitIndex);
+                }
+            }
+        }
+        
+        function loadCommitPatch(prNumber, commitIndex) {
+            const patchContent = document.getElementById(`patch-content-${prNumber}-${commitIndex}`);
+            patchContent.innerHTML = '<div style="color: #666;">Loading patch...</div>';
+            
+            // Get the commit SHA from the commit item
+            const commitItem = document.querySelector(`#commits-${prNumber} .commit-item:nth-child(${commitIndex + 1})`);
+            const commitSha = commitItem.querySelector('.commit-sha').textContent.trim();
+            
+            // Fetch the actual patch from the API
+            fetch(`/api/repository/{{ repo_name }}/commit/${commitSha}/patch`, {
+                credentials: 'same-origin'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.patch) {
+                        // Format the patch for better display
+                        const formattedPatch = data.patch
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/^\+/gm, '<span style="color: #28a745; background: #d4edda;">+')
+                            .replace(/^-/gm, '<span style="color: #dc3545; background: #f8d7da;">-')
+                            .replace(/(<span[^>]*>.*<\/span>)/gm, '$1</span>');
+                        
+                        patchContent.innerHTML = `
+                            <div style="font-family: monospace; font-size: 0.8rem; line-height: 1.4; white-space: pre-wrap; word-break: break-all;">
+                                ${formattedPatch}
+                            </div>
+                        `;
+                    } else {
+                        patchContent.innerHTML = '<div style="color: #dc3545;">Failed to load patch</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading patch:', error);
+                    patchContent.innerHTML = '<div style="color: #dc3545;">Error loading patch</div>';
                 });
         }
         

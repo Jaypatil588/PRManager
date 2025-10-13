@@ -851,6 +851,41 @@ def api_repository_commits(repo_name):
     except Exception as e:
         return jsonify({'error': f'Failed to fetch commits: {str(e)}'}), 500
 
+@app.route('/api/repository/<path:repo_name>/commit/<commit_sha>/patch')
+def api_commit_patch(repo_name, commit_sha):
+    """API endpoint to get patch for a specific commit"""
+    if 'user' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    # Decode URL-encoded repository name
+    from urllib.parse import unquote
+    repo_name = unquote(repo_name)
+    
+    try:
+        # Split repository name into owner and repo
+        if '/' not in repo_name:
+            return jsonify({'error': 'Invalid repository name format'}), 400
+        
+        repo_owner, repo_name_only = repo_name.split('/', 1)
+        
+        # Get user's access token and create GitHub service instance
+        access_token = session['user']['access_token']
+        user_github_service = GitHubService(token=access_token)
+        
+        # Get commit patch
+        patch = user_github_service.get_commit_patch(repo_owner, repo_name_only, commit_sha)
+        
+        if patch is None:
+            return jsonify({'error': 'Failed to fetch commit patch'}), 500
+        
+        return jsonify({
+            'patch': patch,
+            'commit_sha': commit_sha
+        })
+    
+    except Exception as e:
+        return jsonify({'error': f'Failed to fetch commit patch: {str(e)}'}), 500
+
 @app.route('/api/repository/<path:repo_name>/pr/<int:pr_number>/analysis')
 def api_pr_analysis(repo_name, pr_number):
     """API endpoint to get PR analysis data"""
