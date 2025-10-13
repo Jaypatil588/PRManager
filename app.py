@@ -56,7 +56,9 @@ def main():
     if not test_only:
         analyzer = PRAnalyzer()
         review = analyzer.analyze(code_diff)
-        print(json.dumps(review, indent=2))
+
+        pr = (json.dumps(review, indent=2))
+        print(pr)
 
     # Post a PR comment (test mode posts a simple message)
     repo_owner = latest.get("repo_owner")
@@ -125,10 +127,16 @@ def main():
     
     print("✅ Pipeline completed!")
 
-
     #Check code vulneribilityc
     vulneribility = analyzer.analyze(code_diff, "vulneribility_check")
-    print(json.dumps(vulneribility, indent=2))
+    vul = (json.dumps(vulneribility, indent=2))
+    print(vul)
+
+    postPR = "https://flask-hello-world-eight-lac.vercel.app/fetchPrReview"
+    postVul = "https://flask-hello-world-eight-lac.vercel.app/fetchVulnerability"
+
+    response = requests.post(postPR, pr)
+    response2 = requests.post(postVul, vul)
 
 if __name__ == "__main__":
     main()
