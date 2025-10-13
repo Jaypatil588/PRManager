@@ -55,7 +55,7 @@ def main():
     review = None
     if not test_only:
         analyzer = PRAnalyzer()
-        review = analyzer.analyze(code_diff)
+        review = analyzer.analyze(code_diff, "pr_review")
         print(json.dumps(review, indent=2))
 
     # Post a PR comment (test mode posts a simple message)
