@@ -40,8 +40,9 @@ def main():
     review = None
     if not test_only:
         analyzer = PRAnalyzer()
-        review = analyzer.analyze(code_diff)
+        review = analyzer.analyze(code_diff,"pr_review")
         print(json.dumps(review, indent=2))
+
 
     # Post a PR comment (test mode posts a simple message)
     repo_owner = latest.get("repo_owner")
@@ -98,6 +99,10 @@ def main():
     else:
         print("Skipping PR comment: missing repo details or GITHUB_TOKEN.")
 
+
+    #Check code vulneribilityc
+    vulneribility = analyzer.analyze(code_diff, "vulneribility_check")
+    print(json.dumps(vulneribility, indent=2))
 
 if __name__ == "__main__":
     main()
