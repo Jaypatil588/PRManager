@@ -165,3 +165,6 @@ logs/
 # *.txt
 # *.xlsx
 # *.xls
+
+# Test files
+test_slack.py

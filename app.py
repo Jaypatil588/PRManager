@@ -2,6 +2,7 @@ import requests
 import json
 import os
 from dotenv import load_dotenv
+from slack_client import SlackClient
 
 
 def main():
@@ -42,6 +43,19 @@ def main():
         analyzer = PRAnalyzer()
         review = analyzer.analyze(code_diff,"pr_review")
         print(json.dumps(review, indent=2))
+        
+        try:
+            slack = SlackClient()
+            pr_info = {
+                "repo_owner": latest.get("repo_owner"),
+                "repo_name": latest.get("repo_name"),
+                "pr_number": latest.get("pr_number")
+            }
+            slack.send_pr_review(review, pr_info)
+        except ValueError as e:
+            print(f"Skipping Slack notification: {e}")
+        except Exception as e:
+            print(f"Error with Slack notification: {e}")
 
 
     # Post a PR comment (test mode posts a simple message)
