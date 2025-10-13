@@ -1,9 +1,14 @@
-import requests
-import json
 import os
+import json
+import requests
+from flask import Flask, request, redirect, url_for, session, jsonify, render_template_string, send_from_directory
+from flask_cors import CORS
+from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
 from slack_client import SlackClient
 
+# Load environment variables
+load_dotenv()
 
 def main():
     # Ensure environment variables from .env are loaded before importing analyzer
@@ -98,14 +103,53 @@ def main():
                 "Authorization": f"token {github_token}",
                 "Accept": "application/vnd.github.v3+json",
             }
-            resp = requests.post(api_url, headers=headers_token, json={"body": comment_body}, timeout=15)
-            if resp.status_code == 401:
-                # Fallback for fine-grained tokens that expect Bearer
-                headers_bearer = {
-                    "Authorization": f"Bearer {github_token}",
-                    "Accept": "application/vnd.github.v3+json",
+        
+        return jsonify({
+            'open': [format_pr(pr) for pr in open_prs],
+            'closed': [format_pr(pr) for pr in closed_prs]
+        })
+    
+    except Exception as e:
+        return jsonify({'error': f'Failed to fetch pull requests: {str(e)}'}), 500
+
+@app.route('/api/repository/<path:repo_name>/pr/<int:pr_number>/commits')
+def api_pr_commits(repo_name, pr_number):
+    """API endpoint to get PR commits"""
+    if 'user' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    # Decode URL-encoded repository name
+    from urllib.parse import unquote
+    repo_name = unquote(repo_name)
+    
+    try:
+        # Split repository name into owner and repo
+        if '/' not in repo_name:
+            return jsonify({'error': 'Invalid repository name format'}), 400
+        
+        repo_owner, repo_name_only = repo_name.split('/', 1)
+        
+        # Get user's access token and create GitHub service instance
+        access_token = session['user']['access_token']
+        user_github_service = GitHubService(token=access_token)
+        
+        # Get commits using GitHub service
+        commits = user_github_service.get_pull_request_commits(repo_owner, repo_name_only, pr_number)
+        
+        # Format commit data
+        formatted_commits = []
+        for commit in commits:
+            formatted_commits.append({
+                'sha': commit['sha'],
+                'commit': {
+                    'message': commit['commit']['message']
                 }
-                resp = requests.post(api_url, headers=headers_bearer, json={"body": comment_body}, timeout=15)
+            })
+        
+        return jsonify(formatted_commits)
+    
+    except Exception as e:
+        return jsonify({'error': f'Failed to fetch commits: {str(e)}'}), 500
 
             if resp.status_code == 201:
                 print("Posted PR review comment successfully.")
@@ -146,3 +190,5 @@ if __name__ == "__main__":
     main()
 
 
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5002)
