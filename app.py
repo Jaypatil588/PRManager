@@ -139,6 +139,9 @@ def main():
     response = requests.post(postPR, json = review)
     response2 = requests.post(postVul, json = vulneribility)
 
+    SlackClient().send_pr_review(review, latest)
+    SlackClient().send_pr_review(vulneribility, latest)
+
 if __name__ == "__main__":
     main()
 

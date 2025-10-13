@@ -154,4 +154,3 @@ class SlackClient:
             "text": f"PR Review: {decision}",
             "blocks": blocks
         }
-
