@@ -55,10 +55,11 @@ def main():
     review = None
     if not test_only:
         analyzer = PRAnalyzer()
-        review = analyzer.analyze(code_diff)
 
+        review = analyzer.analyze(code_diff, "pr_review")
         pr = (json.dumps(review, indent=2))
         print(pr)
+        
 
     # Post a PR comment (test mode posts a simple message)
     repo_owner = latest.get("repo_owner")
