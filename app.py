@@ -1,6 +1,7 @@
 import requests
 import json
 import os
+from typing import Optional
 from dotenv import load_dotenv
 from slack_client import SlackClient
 
@@ -65,7 +66,7 @@ def main():
     github_token = os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
 
     if repo_owner and repo_name and pr_number and github_token:
-        def _format_comment(r: dict | None) -> str:
+        def _format_comment(r: Optional[dict]) -> str:
             if test_only or not r:
                 return "Test comment from PRManager: integration check ✅"
             if "error" in r:
@@ -114,9 +115,21 @@ def main():
         print("Skipping PR comment: missing repo details or GITHUB_TOKEN.")
 
 
-    #Check code vulneribilityc
     vulneribility = analyzer.analyze(code_diff, "vulneribility_check")
     print(json.dumps(vulneribility, indent=2))
+    
+    try:
+        slack = SlackClient()
+        pr_info = {
+            "repo_owner": latest.get("repo_owner"),
+            "repo_name": latest.get("repo_name"),
+            "pr_number": latest.get("pr_number")
+        }
+        slack.send_pr_review(vulneribility, pr_info)
+    except ValueError as e:
+        print(f"Skipping Slack notification: {e}")
+    except Exception as e:
+        print(f"Error with Slack notification: {e}")
 
 if __name__ == "__main__":
     main()
