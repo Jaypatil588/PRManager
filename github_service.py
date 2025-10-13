@@ -56,14 +56,35 @@ class GitHubService:
             print(f"Error fetching pull requests for {repo_owner}/{repo_name}: {e}")
             return []
     
-    def get_pull_request_commits(self, repo_owner, repo_name, pr_number):
+    def get_pull_request_commits(self, repo_owner, repo_name, pr_number, per_page=100):
         """Get commits for a specific pull request"""
         url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/pulls/{pr_number}/commits"
         
+        params = {
+            'per_page': per_page
+        }
+        
         try:
-            response = requests.get(url, headers=self.headers)
+            response = requests.get(url, headers=self.headers, params=params)
             response.raise_for_status()
-            return response.json()
+            commits = response.json()
+            
+            # Format commits for better display
+            formatted_commits = []
+            for commit in commits:
+                formatted_commits.append({
+                    'sha': commit['sha'],
+                    'commit': {
+                        'message': commit['commit']['message'],
+                        'author': commit['commit']['author'],
+                        'committer': commit['commit']['committer']
+                    },
+                    'html_url': commit['html_url'],
+                    'author': commit.get('author', {}),
+                    'committer': commit.get('committer', {})
+                })
+            
+            return formatted_commits
         except Exception as e:
             print(f"Error fetching commits for PR #{pr_number}: {e}")
             return []
@@ -114,6 +135,45 @@ class GitHubService:
             return response.json()
         except Exception as e:
             print(f"Error fetching reviews for PR #{pr_number}: {e}")
+            return []
+    
+    def get_repository_commits(self, repo_owner, repo_name, per_page=100, since=None):
+        """Get all commits for a repository"""
+        url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/commits"
+        
+        params = {
+            'per_page': per_page,
+            'sort': 'updated'
+        }
+        
+        if since:
+            params['since'] = since
+        
+        try:
+            response = requests.get(url, headers=self.headers, params=params)
+            response.raise_for_status()
+            commits = response.json()
+            
+            # Format commits for better display
+            formatted_commits = []
+            for commit in commits:
+                formatted_commits.append({
+                    'sha': commit['sha'],
+                    'commit': {
+                        'message': commit['commit']['message'],
+                        'author': commit['commit']['author'],
+                        'committer': commit['commit']['committer']
+                    },
+                    'html_url': commit['html_url'],
+                    'author': commit.get('author', {}),
+                    'committer': commit.get('committer', {}),
+                    'stats': commit.get('stats', {}),
+                    'files': commit.get('files', [])
+                })
+            
+            return formatted_commits
+        except Exception as e:
+            print(f"Error fetching commits for repository {repo_owner}/{repo_name}: {e}")
             return []
     
     def analyze_commits(self, commits):
