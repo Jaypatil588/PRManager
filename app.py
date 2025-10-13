@@ -10,54 +10,54 @@ def main():
     # Ensure environment variables from .env are loaded before importing analyzer
     load_dotenv()
     from pr_analyzer import PRAnalyzer
+    from github_client import GitHubClient
+    
     webhook_url = "https://flask-hello-world-eight-lac.vercel.app/webhookCommits"
 
+    print("🚀 Starting PR Analysis and Comment Pipeline")
+    
+    # Step 1: Fetch webhook data
     try:
+        print("📡 Fetching webhook data...")
         resp = requests.get(webhook_url, timeout=15)
         resp.raise_for_status()
         payload = resp.json()
+        print(f"✅ Webhook data fetched: {len(payload) if isinstance(payload, list) else 'N/A'} entries")
     except Exception as exc:
-        print(json.dumps({"error": f"Failed to fetch webhook data: {exc}"}))
+        print(f"❌ Failed to fetch webhook data: {exc}")
         return
 
     if not isinstance(payload, list) or not payload:
-        print(json.dumps({"error": "Webhook returned empty or invalid payload"}))
+        print("❌ Webhook returned empty or invalid payload")
         return
 
+    # Step 2: Extract PR data
     latest = payload[-1]
+    repo_owner = latest.get("repo_owner")
+    repo_name = latest.get("repo_name")
+    pr_number = latest.get("pr_number")
+    
+    print(f"📋 Processing PR: {repo_owner}/{repo_name}#{pr_number}")
+    
+    # Step 3: Extract code diff
     code_diff = None
-
     commits = latest.get("commits")
     if isinstance(commits, list) and commits:
         code_diff = commits[-1].get("code_changes")
     if not code_diff:
         code_diff = latest.get("code_changes")
 
-    # If only testing comment posting, skip analyzer entirely
     test_only = os.getenv("TEST_COMMENT") == "1"
     if not code_diff and not test_only:
-        print(json.dumps({"error": "No code_changes diff found in payload"}))
+        print("❌ No code_changes diff found in payload")
         return
 
+    # Step 4: Analyze code (if not test mode)
     review = None
     if not test_only:
         analyzer = PRAnalyzer()
-        review = analyzer.analyze(code_diff,"pr_review")
+        review = analyzer.analyze(code_diff)
         print(json.dumps(review, indent=2))
-        
-        try:
-            slack = SlackClient()
-            pr_info = {
-                "repo_owner": latest.get("repo_owner"),
-                "repo_name": latest.get("repo_name"),
-                "pr_number": latest.get("pr_number")
-            }
-            slack.send_pr_review(review, pr_info)
-        except ValueError as e:
-            print(f"Skipping Slack notification: {e}")
-        except Exception as e:
-            print(f"Error with Slack notification: {e}")
-
 
     # Post a PR comment (test mode posts a simple message)
     repo_owner = latest.get("repo_owner")
@@ -110,9 +110,21 @@ def main():
             else:
                 print(f"Failed to post PR comment: {resp.status_code} - {resp.text}")
         except Exception as exc:
-            print(f"Error posting PR comment: {exc}")
+            print(f"❌ Comment posting failed: {exc}")
     else:
-        print("Skipping PR comment: missing repo details or GITHUB_TOKEN.")
+        missing = []
+        if not github_token:
+            missing.append("GITHUB_TOKEN")
+        if not repo_owner:
+            missing.append("repo_owner")
+        if not repo_name:
+            missing.append("repo_name")
+        if not pr_number:
+            missing.append("pr_number")
+        
+        print(f"⏭️  Skipping comments: missing {', '.join(missing)}")
+    
+    print("✅ Pipeline completed!")
 
 
     vulneribility = analyzer.analyze(code_diff, "vulneribility_check")
